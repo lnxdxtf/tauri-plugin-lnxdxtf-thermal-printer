@@ -1,11 +1,12 @@
 use tauri::{
-  plugin::{Builder, TauriPlugin},
-  Manager, Runtime,
+    plugin::{Builder, TauriPlugin},
+    Manager, Runtime,
 };
 
 use std::{collections::HashMap, sync::Mutex};
 
 pub use models::*;
+mod connections;
 
 #[cfg(desktop)]
 mod desktop;
@@ -24,33 +25,34 @@ use desktop::LnxdxtfThermalPrinter;
 use mobile::LnxdxtfThermalPrinter;
 
 #[derive(Default)]
-struct MyState(Mutex<HashMap<String, String>>);
+struct PrinterState(Mutex<HashMap<String, String>>);
 
 /// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the lnxdxtf-thermal-printer APIs.
 pub trait LnxdxtfThermalPrinterExt<R: Runtime> {
-  fn lnxdxtf_thermal_printer(&self) -> &LnxdxtfThermalPrinter<R>;
+    fn lnxdxtf_thermal_printer(&self) -> &LnxdxtfThermalPrinter<R>;
 }
 
 impl<R: Runtime, T: Manager<R>> crate::LnxdxtfThermalPrinterExt<R> for T {
-  fn lnxdxtf_thermal_printer(&self) -> &LnxdxtfThermalPrinter<R> {
-    self.state::<LnxdxtfThermalPrinter<R>>().inner()
-  }
+    fn lnxdxtf_thermal_printer(&self) -> &LnxdxtfThermalPrinter<R> {
+        self.state::<LnxdxtfThermalPrinter<R>>().inner()
+    }
 }
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  Builder::new("lnxdxtf-thermal-printer")
-    .invoke_handler(tauri::generate_handler![commands::execute])
-    .setup(|app, api| {
-      #[cfg(mobile)]
-      let lnxdxtf_thermal_printer = mobile::init(app, api)?;
-      #[cfg(desktop)]
-      let lnxdxtf_thermal_printer = desktop::init(app, api)?;
-      app.manage(lnxdxtf_thermal_printer);
+    Builder::new("lnxdxtf-thermal-printer")
+        .invoke_handler(tauri::generate_handler![commands::execute, commands::test])
+        .setup(|app, api| {
+            #[cfg(mobile)]
+            let lnxdxtf_thermal_printer = mobile::init(app, api)?;
 
-      // manage state so it is accessible by the commands
-      app.manage(MyState::default());
-      Ok(())
-    })
-    .build()
+            #[cfg(desktop)]
+            let lnxdxtf_thermal_printer = desktop::init(app, api)?;
+            app.manage(lnxdxtf_thermal_printer);
+
+            // manage state so it is accessible by the commands
+            app.manage(PrinterState::default());
+            Ok(())
+        })
+        .build()
 }
